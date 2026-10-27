@@ -1,0 +1,991 @@
+import pandas as pd
+import os
+
+# ============================================================
+# AI JOB MARKET ANALYTICS
+# STEP 2: DATA CLEANING
+# ============================================================
+
+print("=" * 70)
+print("AI JOB MARKET ANALYTICS - DATA CLEANING")
+print("=" * 70)
+
+
+# ============================================================
+# 1. FILE PATHS
+# ============================================================
+
+input_file = r"B:\AI_Job_Market_Analytics\dataset\ai_job_dataset.csv"
+
+csv_output_file = (
+    r"B:\AI_Job_Market_Analytics\dataset\cleaned_ai_job_market.csv"
+)
+
+excel_output_file = (
+    r"B:\AI_Job_Market_Analytics\dataset\cleaned_ai_job_market.xlsx"
+)
+
+
+# ============================================================
+# 2. CHECK INPUT FILE
+# ============================================================
+
+print("\n[1] Checking input file...")
+
+if not os.path.exists(input_file):
+
+    print("\nERROR: Input dataset not found!")
+    print("Expected file:")
+    print(input_file)
+    exit()
+
+print("Input file found successfully.")
+
+
+# ============================================================
+# 3. LOAD DATASET
+# ============================================================
+
+print("\n[2] Loading dataset...")
+
+df = pd.read_csv(input_file)
+
+print("Original shape:", df.shape)
+print("Original rows:", df.shape[0])
+print("Original columns:", df.shape[1])
+
+
+# ============================================================
+# 4. DISPLAY ORIGINAL COLUMNS
+# ============================================================
+
+print("\n[3] Original columns:")
+
+for column in df.columns:
+    print("-", column)
+
+
+# ============================================================
+# 5. CLEAN COLUMN NAMES
+# ============================================================
+
+print("\n[4] Cleaning column names...")
+
+df.columns = (
+    df.columns
+    .str.strip()
+    .str.lower()
+    .str.replace(" ", "_", regex=False)
+)
+
+print("Cleaned columns:")
+
+for column in df.columns:
+    print("-", column)
+
+
+# ============================================================
+# 6. REMOVE DUPLICATE ROWS
+# ============================================================
+
+print("\n[5] Removing duplicate rows...")
+
+rows_before = len(df)
+
+df = df.drop_duplicates()
+
+rows_after = len(df)
+
+duplicates_removed = rows_before - rows_after
+
+print("Duplicate rows removed:", duplicates_removed)
+print("Shape after removing duplicates:", df.shape)
+
+
+# ============================================================
+# 7. REMOVE DUPLICATE JOB IDs
+# ============================================================
+
+print("\n[6] Checking duplicate job IDs...")
+
+if "job_id" in df.columns:
+
+    rows_before = len(df)
+
+    df = df.drop_duplicates(
+        subset=["job_id"],
+        keep="first"
+    )
+
+    rows_after = len(df)
+
+    duplicate_job_ids_removed = rows_before - rows_after
+
+    print(
+        "Duplicate job IDs removed:",
+        duplicate_job_ids_removed
+    )
+
+else:
+
+    print("WARNING: job_id column not found.")
+
+
+print("Shape after job ID check:", df.shape)
+
+
+# ============================================================
+# 8. CONVERT NUMERIC COLUMNS
+# ============================================================
+
+print("\n[7] Converting numeric columns...")
+
+numeric_columns = [
+    "salary_usd",
+    "remote_ratio",
+    "years_experience",
+    "job_description_length",
+    "benefits_score"
+]
+
+for column in numeric_columns:
+
+    if column in df.columns:
+
+        df[column] = pd.to_numeric(
+            df[column],
+            errors="coerce"
+        )
+
+        print("Converted:", column)
+
+    else:
+
+        print("WARNING: Column not found:", column)
+
+
+# ============================================================
+# 9. CONVERT DATE COLUMNS
+# ============================================================
+
+print("\n[8] Converting date columns...")
+
+date_columns = [
+    "posting_date",
+    "application_deadline"
+]
+
+for column in date_columns:
+
+    if column in df.columns:
+
+        # Dataset dates are in DD-MM-YYYY format
+        df[column] = pd.to_datetime(
+            df[column],
+            format="%d-%m-%Y",
+            errors="coerce"
+        )
+
+        print("Converted:", column)
+
+    else:
+
+        print("WARNING: Date column not found:", column)
+
+
+# ============================================================
+# 10. CLEAN TEXT COLUMNS
+# ============================================================
+
+print("\n[9] Cleaning text columns...")
+
+text_columns = [
+    "job_title",
+    "salary_currency",
+    "experience_level",
+    "employment_type",
+    "company_location",
+    "company_size",
+    "employee_residence",
+    "required_skills",
+    "education_required",
+    "industry",
+    "company_name"
+]
+
+for column in text_columns:
+
+    if column in df.columns:
+
+        df[column] = (
+            df[column]
+            .astype("string")
+            .str.strip()
+        )
+
+        print("Cleaned:", column)
+
+    else:
+
+        print("WARNING: Text column not found:", column)
+
+
+# ============================================================
+# 11. CHECK MISSING VALUES BEFORE CLEANING
+# ============================================================
+
+print("\n[10] Missing values BEFORE cleaning:")
+
+missing_before = df.isnull().sum()
+
+missing_before = missing_before[
+    missing_before > 0
+]
+
+if len(missing_before) == 0:
+
+    print("No missing values found.")
+
+else:
+
+    print(missing_before)
+
+
+# ============================================================
+# 12. HANDLE MISSING NUMERIC VALUES
+# ============================================================
+
+print("\n[11] Handling missing numeric values...")
+
+for column in numeric_columns:
+
+    if column in df.columns:
+
+        missing_count = df[column].isnull().sum()
+
+        if missing_count > 0:
+
+            median_value = df[column].median()
+
+            df[column] = df[column].fillna(
+                median_value
+            )
+
+            print(
+                column,
+                "->",
+                missing_count,
+                "missing values filled with median:",
+                median_value
+            )
+
+        else:
+
+            print(
+                column,
+                "-> No missing values"
+            )
+
+
+# ============================================================
+# 13. HANDLE MISSING CATEGORICAL VALUES
+# ============================================================
+
+print("\n[12] Handling missing categorical values...")
+
+categorical_columns = [
+    "job_title",
+    "salary_currency",
+    "experience_level",
+    "employment_type",
+    "company_location",
+    "company_size",
+    "employee_residence",
+    "education_required",
+    "industry",
+    "company_name"
+]
+
+for column in categorical_columns:
+
+    if column in df.columns:
+
+        missing_count = df[column].isnull().sum()
+
+        if missing_count > 0:
+
+            df[column] = df[column].fillna(
+                "Unknown"
+            )
+
+            print(
+                column,
+                "->",
+                missing_count,
+                "missing values filled with Unknown"
+            )
+
+        else:
+
+            print(
+                column,
+                "-> No missing values"
+            )
+
+
+# ============================================================
+# 14. HANDLE MISSING REQUIRED SKILLS
+# ============================================================
+
+print("\n[13] Handling missing required skills...")
+
+if "required_skills" in df.columns:
+
+    missing_count = df["required_skills"].isnull().sum()
+
+    if missing_count > 0:
+
+        df["required_skills"] = (
+            df["required_skills"]
+            .fillna("Unknown")
+        )
+
+        print(
+            "required_skills ->",
+            missing_count,
+            "missing values filled with Unknown"
+        )
+
+    else:
+
+        print(
+            "required_skills -> No missing values"
+        )
+
+
+# ============================================================
+# 15. CHECK MISSING DATE VALUES
+# ============================================================
+
+print("\n[14] Checking missing date values...")
+
+for column in date_columns:
+
+    if column in df.columns:
+
+        missing_count = df[column].isnull().sum()
+
+        print(
+            column,
+            "->",
+            missing_count,
+            "missing values"
+        )
+
+
+# ============================================================
+# 16. CREATE EXPERIENCE CATEGORY
+# ============================================================
+
+print("\n[15] Creating experience category...")
+
+
+def categorize_experience(years):
+
+    if pd.isna(years):
+
+        return "Unknown"
+
+    elif years <= 2:
+
+        return "Entry Level"
+
+    elif years <= 5:
+
+        return "Mid Level"
+
+    elif years <= 10:
+
+        return "Senior Level"
+
+    else:
+
+        return "Expert Level"
+
+
+if "years_experience" in df.columns:
+
+    df["experience_category"] = (
+        df["years_experience"]
+        .apply(categorize_experience)
+    )
+
+    print("experience_category created successfully.")
+
+
+# ============================================================
+# 17. CREATE WORK MODE
+# ============================================================
+
+print("\n[16] Creating work mode...")
+
+
+def categorize_work_mode(remote_ratio):
+
+    if pd.isna(remote_ratio):
+
+        return "Unknown"
+
+    elif remote_ratio == 0:
+
+        return "On-site"
+
+    elif remote_ratio == 100:
+
+        return "Fully Remote"
+
+    else:
+
+        return "Hybrid"
+
+
+if "remote_ratio" in df.columns:
+
+    df["work_mode"] = (
+        df["remote_ratio"]
+        .apply(categorize_work_mode)
+    )
+
+    print("work_mode created successfully.")
+
+
+# ============================================================
+# 18. CREATE POSTING YEAR
+# ============================================================
+
+print("\n[17] Creating posting year...")
+
+if "posting_date" in df.columns:
+
+    df["posting_year"] = (
+        df["posting_date"].dt.year
+    )
+
+    print("posting_year created successfully.")
+
+
+# ============================================================
+# 19. CREATE POSTING MONTH
+# ============================================================
+
+print("\n[18] Creating posting month...")
+
+if "posting_date" in df.columns:
+
+    df["posting_month"] = (
+        df["posting_date"].dt.month
+    )
+
+    print("posting_month created successfully.")
+
+
+# ============================================================
+# 20. CREATE POSTING MONTH NAME
+# ============================================================
+
+print("\n[19] Creating posting month name...")
+
+if "posting_date" in df.columns:
+
+    df["posting_month_name"] = (
+        df["posting_date"]
+        .dt.month_name()
+    )
+
+    print("posting_month_name created successfully.")
+
+
+# ============================================================
+# 21. CREATE POSTING QUARTER
+# ============================================================
+
+print("\n[20] Creating posting quarter...")
+
+if "posting_date" in df.columns:
+
+    df["posting_quarter"] = (
+        df["posting_date"].dt.quarter
+    )
+
+    print("posting_quarter created successfully.")
+
+
+# ============================================================
+# 22. CALCULATE APPLICATION WINDOW
+# ============================================================
+
+print("\n[21] Calculating application window...")
+
+if (
+    "posting_date" in df.columns
+    and
+    "application_deadline" in df.columns
+):
+
+    df["application_window_days"] = (
+        df["application_deadline"]
+        - df["posting_date"]
+    ).dt.days
+
+    print(
+        "application_window_days created successfully."
+    )
+
+
+# ============================================================
+# 23. DATA VALIDATION
+# ============================================================
+
+print("\n[22] Validating data...")
+
+
+# ------------------------------------------------------------
+# Salary validation
+# ------------------------------------------------------------
+
+if "salary_usd" in df.columns:
+
+    invalid_salary = (
+        df["salary_usd"] < 0
+    ).sum()
+
+    print(
+        "Negative salary values:",
+        invalid_salary
+    )
+
+    if invalid_salary > 0:
+
+        df.loc[
+            df["salary_usd"] < 0,
+            "salary_usd"
+        ] = df["salary_usd"].median()
+
+
+# ------------------------------------------------------------
+# Remote ratio validation
+# ------------------------------------------------------------
+
+if "remote_ratio" in df.columns:
+
+    invalid_remote = (
+        (df["remote_ratio"] < 0)
+        |
+        (df["remote_ratio"] > 100)
+    ).sum()
+
+    print(
+        "Invalid remote ratio values:",
+        invalid_remote
+    )
+
+
+# ------------------------------------------------------------
+# Years of experience validation
+# ------------------------------------------------------------
+
+if "years_experience" in df.columns:
+
+    invalid_experience = (
+        df["years_experience"] < 0
+    ).sum()
+
+    print(
+        "Negative experience values:",
+        invalid_experience
+    )
+
+
+# ------------------------------------------------------------
+# Job description length validation
+# ------------------------------------------------------------
+
+if "job_description_length" in df.columns:
+
+    invalid_description = (
+        df["job_description_length"] < 0
+    ).sum()
+
+    print(
+        "Negative job description lengths:",
+        invalid_description
+    )
+
+
+# ------------------------------------------------------------
+# Benefits score validation
+# ------------------------------------------------------------
+
+if "benefits_score" in df.columns:
+
+    invalid_benefits = (
+        df["benefits_score"] < 0
+    ).sum()
+
+    print(
+        "Negative benefits scores:",
+        invalid_benefits
+    )
+
+
+# ============================================================
+# 24. FINAL MISSING VALUE CHECK
+# ============================================================
+
+print("\n[23] Missing values AFTER cleaning:")
+
+missing_after = df.isnull().sum()
+
+missing_after = missing_after[
+    missing_after > 0
+]
+
+if len(missing_after) == 0:
+
+    print("No missing values found.")
+
+else:
+
+    print(missing_after)
+
+
+# ============================================================
+# 25. FINAL DATASET INFORMATION
+# ============================================================
+
+print("\n[24] Final dataset information")
+
+print("-" * 70)
+
+print("Final shape:", df.shape)
+
+print("Final rows:", len(df))
+
+print("Final columns:", len(df.columns))
+
+
+# ============================================================
+# 26. DISPLAY FINAL COLUMNS
+# ============================================================
+
+print("\nFinal columns:")
+
+for number, column in enumerate(
+    df.columns,
+    start=1
+):
+
+    print(
+        f"{number}. {column}"
+    )
+
+
+# ============================================================
+# 27. DISPLAY FIRST 5 ROWS
+# ============================================================
+
+print("\n[25] First 5 rows:")
+
+print(
+    df.head().to_string()
+)
+
+
+# ============================================================
+# 28. DISPLAY DATA TYPES
+# ============================================================
+
+print("\n[26] Data types:")
+
+print(
+    df.dtypes
+)
+
+
+# ============================================================
+# 29. SAVE CSV
+# ============================================================
+
+print("\n[27] Saving CSV file...")
+
+dataset_folder = (
+    r"B:\AI_Job_Market_Analytics\dataset"
+)
+
+os.makedirs(
+    dataset_folder,
+    exist_ok=True
+)
+
+try:
+
+    df.to_csv(
+        csv_output_file,
+        index=False
+    )
+
+    print(
+        "CSV saved successfully:"
+    )
+
+    print(
+        csv_output_file
+    )
+
+except PermissionError:
+
+    print(
+        "\nERROR: Permission denied while saving CSV."
+    )
+
+    print(
+        "Close the CSV file in Excel/VS Code "
+        "and run the script again."
+    )
+
+
+# ============================================================
+# 30. SAVE EXCEL FILE
+# ============================================================
+
+print("\n[28] Creating formatted Excel file...")
+
+try:
+
+    with pd.ExcelWriter(
+        excel_output_file,
+        engine="openpyxl",
+        date_format="DD-MM-YYYY"
+    ) as writer:
+
+        # Write dataframe
+        df.to_excel(
+            writer,
+            sheet_name="Cleaned Data",
+            index=False
+        )
+
+        # Get worksheet
+        worksheet = writer.sheets[
+            "Cleaned Data"
+        ]
+
+        # ----------------------------------------------------
+        # Format date columns
+        # ----------------------------------------------------
+
+        for cell in worksheet["O"]:
+
+            if cell.row > 1:
+
+                cell.number_format = "DD-MM-YYYY"
+
+        for cell in worksheet["P"]:
+
+            if cell.row > 1:
+
+                cell.number_format = "DD-MM-YYYY"
+
+
+        # ----------------------------------------------------
+        # Automatically adjust column widths
+        # ----------------------------------------------------
+
+        for column_cells in worksheet.columns:
+
+            column_letter = (
+                column_cells[0]
+                .column_letter
+            )
+
+            max_length = 0
+
+            for cell in column_cells:
+
+                if cell.value is not None:
+
+                    cell_length = len(
+                        str(cell.value)
+                    )
+
+                    if cell_length > max_length:
+
+                        max_length = cell_length
+
+            # Limit extremely long columns
+            adjusted_width = min(
+                max_length + 2,
+                40
+            )
+
+            worksheet.column_dimensions[
+                column_letter
+            ].width = adjusted_width
+
+
+        # ----------------------------------------------------
+        # Specific widths for important columns
+        # ----------------------------------------------------
+
+        # O = posting_date
+        worksheet.column_dimensions[
+            "O"
+        ].width = 15
+
+        # P = application_deadline
+        worksheet.column_dimensions[
+            "P"
+        ].width = 22
+
+        # Required skills
+        worksheet.column_dimensions[
+            "H"
+        ].width = 35
+
+
+        # ----------------------------------------------------
+        # Freeze header row
+        # ----------------------------------------------------
+
+        worksheet.freeze_panes = "A2"
+
+
+        # ----------------------------------------------------
+        # Enable filters
+        # ----------------------------------------------------
+
+        worksheet.auto_filter.ref = (
+            worksheet.dimensions
+        )
+
+
+    print(
+        "\nExcel file created successfully:"
+    )
+
+    print(
+        excel_output_file
+    )
+
+except PermissionError:
+
+    print(
+        "\nERROR: Permission denied while creating Excel file."
+    )
+
+    print(
+        "Close the Excel file and run the script again."
+    )
+
+except ImportError:
+
+    print(
+        "\nERROR: openpyxl is not installed."
+    )
+
+    print(
+        "Run this command:"
+    )
+
+    print(
+        'pip install openpyxl'
+    )
+
+
+# ============================================================
+# 31. FINAL SUMMARY
+# ============================================================
+
+print("\n")
+print("=" * 70)
+print("DATA CLEANING COMPLETED SUCCESSFULLY")
+print("=" * 70)
+
+print(
+    "\nOriginal dataset:"
+)
+
+print(
+    "Rows: 15,000"
+)
+
+print(
+    "Columns: 19"
+)
+
+print(
+    "\nFinal cleaned dataset:"
+)
+
+print(
+    "Rows:",
+    len(df)
+)
+
+print(
+    "Columns:",
+    len(df.columns)
+)
+
+print(
+    "\nFiles created:"
+)
+
+print(
+    "1. CSV:"
+)
+
+print(
+    csv_output_file
+)
+
+print(
+    "\n2. Excel:"
+)
+
+print(
+    excel_output_file
+)
+
+print(
+    "\nNew analytical columns:"
+)
+
+new_columns = [
+    "experience_category",
+    "work_mode",
+    "posting_year",
+    "posting_month",
+    "posting_month_name",
+    "posting_quarter",
+    "application_window_days"
+]
+
+for column in new_columns:
+
+    if column in df.columns:
+
+        print(
+            "-",
+            column
+        )
+
+print(
+    "\nNext step:"
+)
+
+print(
+    "EDA - Exploratory Data Analysis"
+)
+
+print("=" * 70)
